@@ -28,25 +28,39 @@ lineReader.eachLine('song-list', function(line) {
     downloadMp4(link, fileNameMp4, progressBar, () => {
 
         progressBar && progressBar.update(0, {task: _colors.cyan("Converting MP4 -> MP3".padEnd(21, ' '))})
+        progressBar && progressBar.setTotal(0.001)
 
-        const process = new FFMpegProgress(['-i', `mp4/${fileNameMp4}`, '-b:a', '192K', '-vn', '-y', `mp3/${fileName}`]);
+        const process = new FFMpegProgress(['-i', `mp4/${fileNameMp4}`, '-b:a', '192K', '-vn', '-y', `mp3/${fileName}`]);        
         process.on('progress', (progress) => {
-            progressBar && progressBar.setTotal(1)
             progressBar && progressBar.update(progress.progress)
         });
+
+        let skipUpload = true
         process.once('end', () => {
             // Remove unwanted mp4
             fs.unlink(path.resolve(__dirname,pathMp4), () => {})
 
             progressBar.update(progressBar.totalSize, {filename: fileName, task: _colors.magenta("Uploading".padEnd(21, ' '))})
-            uploader.upload(fileName, progressBar, () => {
+
+            if (!skipUpload) {
+                uploader.upload(fileName, progressBar, () => {
+                    progressBarCount--
+                    progressBar.update(progressBar.totalSize, {filename: fileName, task: _colors.green("Completed".padEnd(21, ' '))});
+                    progressBar.stop();
+                    if (progressBarCount == 0) {
+                        multiBar.stop()
+                    }
+                });    
+            }
+            else {
                 progressBarCount--
-                progressBar.update(progressBar.totalSize, {filename: fileName, task: _colors.green("Completed".padEnd(21, ' '))});
-                progressBar.stop();
+                progressBar && progressBar.update(progressBar.totalSize, {filename: fileName, task: _colors.green("Completed".padEnd(21, ' '))});
+                progressBar && progressBar.setTotal(1)
+                progressBar && progressBar.update(1)
                 if (progressBarCount == 0) {
                     multiBar.stop()
                 }
-            });
+            }
         });
     })
 });
@@ -58,20 +72,30 @@ function downloadMp4(link, fileName, progressBar, onDone) {
     // Filter 'highestaudio' or 'audioonly' might result in .webm format is downloaded
     // instead of .mp4, which in turn will cause ffmpeg progress to report wrongly and
     // ultimately destroy our beautiful progress bar
-    var video = ytdl(url, { filter: 'audio', /* quality: 'highestaudio' */});
-    video.pipe(fs.createWriteStream(output));
-    video.on('response', function(res) {
-        var totalSize = res.headers['content-length'];
 
-        progressBar && progressBar.setTotal(totalSize)
-
-        var dataRead = 0;
-        res.on('data', function(data) {
-            dataRead += data.length;
-            progressBar && progressBar.update(dataRead)
-        });
-        res.on('end', function() {
-            onDone()
-        });
-    })
+    try {
+        var video = ytdl(url, { filter: 'audio', /* quality: 'highestaudio' */});
+        video.pipe(fs.createWriteStream(output));
+        video.on('response', function(res) {
+            var totalSize = res.headers['content-length'];
+    
+            progressBar && progressBar.setTotal(totalSize)
+    
+            var dataRead = 0;
+            res.on('data', function(data) {
+                dataRead += data.length;
+                progressBar && progressBar.update(dataRead)
+            });
+            res.on('end', function() {
+                video._destroy()
+                setTimeout(() => {
+                    onDone()
+                }, 200);
+            });
+        })
+    }
+    catch (e) {
+        console.log(e)
+    }
+    
 }

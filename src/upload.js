@@ -4,7 +4,7 @@ const cliProgress = require('cli-progress');
 
 var uploader = {
     upload: function(fileName, progressBar, onDone) {
-        const path = process.cwd() + "/downloaded/" + fileName
+        const path = process.cwd() + "/mp3/" + fileName
 
         var stats = fs.statSync(path)
     
