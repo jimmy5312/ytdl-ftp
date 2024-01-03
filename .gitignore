@@ -349,3 +349,4 @@ healthchecksdb
 # Downloaded and generated files
 *.mp4
 *.mp3
+config/firebase-config.js

@@ -6,19 +6,22 @@ const { exec } = require("child_process");
 
 const shellDownloadMp3 = (url, mp3Name) => {
     return new Promise((resolve, reject) => {
-        exec(`npx ytdl --filter audio --quality highestaudio "${url}" | ffmpeg -i pipe:0 -b:a 192K -vn -y "${mp3Name}"`, (error, stdout, stderr) => {
+        const npxPath = "/home/pi/.nvm/versions/node/v14.17.0/bin/npx"
+        const command = `${npxPath} ytdl --filter audio --quality highestaudio "${url}" | ffmpeg -i pipe:0 -b:a 192K -vn -y "${mp3Name}"`
+        console.log("Download command:", command)
+        exec(command, (error, stdout, stderr) => {
             if (error) {
-                // console.log(`error: ${error.message}`);
+                console.log(`error: ${error.message}`);
                 reject(error)
                 return;
             }
             if (stderr) {
-                // console.log(`stderr: ${stderr}`);
+                console.log(`stderr: ${stderr}`);
                 resolve();
                 return;
             }
             resolve()
-            // console.log(`stdout: ${stdout}`);
+            console.log(`stdout: ${stdout}`);
         });
     })
 }

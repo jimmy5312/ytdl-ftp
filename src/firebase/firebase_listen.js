@@ -17,7 +17,7 @@ const db = firebaseDb
 let dbRef = db.ref("toDownload");
 
 const setupFirebaseListener = () => {
-
+    console.log("Started Firebase listener.")
     let onChangeRef = dbRef.on('child_changed', (snapshot) => {
         let key = snapshot.key
         let child = snapshot.val()
@@ -54,6 +54,7 @@ const setupFirebaseListener = () => {
 
             let mp3Promise = null
             if (process.argv.includes("--shell_download")) {
+                console.log("Starting new child_process to download.")
                 mp3Promise = shellDownloadMp3(child.url, pathMp3)
             }
             else {
