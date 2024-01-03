@@ -345,5 +345,7 @@ ASALocalRun/
 
 # BeatPulse healthcheck temp database
 healthchecksdb
+
+# Downloaded and generated files
 *.mp4
 *.mp3
