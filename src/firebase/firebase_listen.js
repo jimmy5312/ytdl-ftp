@@ -1,4 +1,4 @@
-const { downloadMp4, getMp3Path, getMp4Path } = require("../downloader/downloader");
+const { downloadMp4, getMp3Path, getMp4Path, shellDownloadMp3 } = require("../downloader/downloader");
 const { FFMpegProgress } = require('ffmpeg-progress-wrapper');
 const { firebaseDb, storage } = require("./server");
 const { convertMp4ToMp3 } = require("../converter/converter");
@@ -9,6 +9,7 @@ const uuid = require('uuid-v4');
 const appConstants = require("../../config/constants");
 var fs = require('fs');
 var path = require('path');
+const { uploadToFirebaseStorage } = require("../uploader/firebaseStorageUpload");
 
 
 // As an admin, the app has access to read and write all data, regardless of Security Rules
@@ -21,7 +22,13 @@ const setupFirebaseListener = () => {
         let key = snapshot.key
         let child = snapshot.val()
         if (child.mp3FileName && child.status == 'Downloaded') {
-            deleteFile(child.mp3FileName)
+            // Trigger to delete the song after 3 minute to avoid wasting Firebase Storage disk quota
+            setTimeout(() => {
+                updateSongData(key, {
+                    status: "Deleted",
+                })
+                deleteFile(child.mp3FileName)
+            }, 180 * 1000);
         }
     })
 
@@ -39,23 +46,31 @@ const setupFirebaseListener = () => {
             let pathMp3 = getMp3Path(randFilename)
             let pathMp4 = getMp4Path(randFilename)
             // let fileNameMp4 = randFilename.replace('.mp3', '.mp4')
-    
+
             updateSongData(key, {
                 mp3FileName: randFilename,
                 status: "Downloading video",
             })
-    
-            downloadMp4(child.url, pathMp4, null)
+
+            let mp3Promise = null
+            if (process.argv.includes("--shell_download")) {
+                mp3Promise = shellDownloadMp3(child.url, pathMp3)
+            }
+            else {
+                mp3Promise = downloadMp4(child.url, pathMp4, null)
+                    .then(async () => {
+                        console.log("Finished downloading video. Converting to mp3")
+                        updateSongData(key, {
+                            status: "Converting to MP3",
+                        })
+
+                        return convertMp4ToMp3(pathMp4, pathMp3, true, null)
+                    })
+            }
+
+            mp3Promise
             .then(async () => {
-                console.log("Finished downloading video. Converting to mp3")
-                updateSongData(key, {
-                    status: "Converting to MP3",
-                })
-    
-                return convertMp4ToMp3(pathMp4, pathMp3, true, null)
-            })
-            .then(async () => {
-                let mp3Url = await uploadToStorage(pathMp3)
+                let mp3Url = await uploadToFirebaseStorage(pathMp3)
                 let fileSize = getFilesizeInBytes(pathMp3)
                 updateSongData(key, {
                     status: "Downloading MP3",
@@ -69,13 +84,6 @@ const setupFirebaseListener = () => {
                 updateSongData(key, {
                     status: "Downloaded",
                 })
-
-                // Trigger to delete the song after 1 minute to avoid wasting Firebase Storage disk quota
-                setTimeout(() => {
-                    updateSongData(key, {
-                        status: "Deleted",
-                    })
-                }, 60 * 1000);
             })
         }
     })
@@ -121,9 +129,6 @@ const uploadToStorage = async (mp3Path) => {
 }
 
 setupFirebaseListener()
-module.exports = {
-    uploadToStorage,
-}
 
 
 // https://firebase.google.com/docs/storage/web/delete-files
@@ -142,3 +147,4 @@ const deleteFile = async (fileName) => {
         });
     }
 }
+

@@ -22,7 +22,7 @@ lineReader.eachLine('song-list', function(line) {
     let link = components[0]
     let fileName = components[1]
     let pathMp3 = getMp3Path(fileName)
-    let pathMp4 = getMp4Path(fileName)  // Wiill auto detect .mp3 extension and convert to .mp4 also
+    let pathMp4 = getMp4Path(fileName)  // Will auto detect .mp3 extension and convert to .mp4 also
     
 
     progressBarCount++

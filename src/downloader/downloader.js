@@ -2,6 +2,26 @@ var path = require('path');
 const appConstants = require('../../config/constants');
 const ytdl = require('ytdl-core');
 var fs = require('fs');
+const { exec } = require("child_process");
+
+const shellDownloadMp3 = (url, mp3Name) => {
+    return new Promise((resolve, reject) => {
+        exec(`npx ytdl --filter audio --quality highestaudio "${url}" | ffmpeg -i pipe:0 -b:a 192K -vn -y "${mp3Name}"`, (error, stdout, stderr) => {
+            if (error) {
+                // console.log(`error: ${error.message}`);
+                reject(error)
+                return;
+            }
+            if (stderr) {
+                // console.log(`stderr: ${stderr}`);
+                resolve();
+                return;
+            }
+            resolve()
+            // console.log(`stdout: ${stdout}`);
+        });
+    })
+}
 
 function downloadMp4(link, pathMp4, progressBar, onDone) {
     var url = link;
@@ -18,17 +38,22 @@ function downloadMp4(link, pathMp4, progressBar, onDone) {
     })
 
     try {
+        // console.log("Starting download")
+        // console.log("Start", process.memoryUsage())
         var video = ytdl(url, { filter: 'audio', /* quality: 'highestaudio' */});
         video.pipe(fs.createWriteStream(output, {flags: "w"}));
         video.on('response', function(res) {
             var totalSize = res.headers['content-length'];
-    
+
             progressBar && progressBar.setTotal(totalSize)
-    
+            // console.log("TotalSize: " + totalSize)
+
             var dataRead = 0;
             res.on('data', function(data) {
                 dataRead += data.length;
                 progressBar && progressBar.update(dataRead)
+                // console.log("Progress", process.memoryUsage())
+                // console.log("DataRead: " + dataRead)
             });
             res.on('end', function() {
                 video._destroy()
@@ -42,7 +67,7 @@ function downloadMp4(link, pathMp4, progressBar, onDone) {
     catch (e) {
         console.log(e)
     }
-    return promise  
+    return promise
 }
 
 function getMp3Path(fileName) {
@@ -64,6 +89,7 @@ function getMp4Path(fileName) {
 
 module.exports = {
     downloadMp4,
+    shellDownloadMp3,
     getMp3Path,
     getMp4Path,
 }
