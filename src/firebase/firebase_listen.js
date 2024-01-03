@@ -66,10 +66,14 @@ const setupFirebaseListener = () => {
                 return Promise.resolve()
             })
             .then(() => {
+                updateSongData(key, {
+                    status: "Downloaded",
+                })
+
                 // Trigger to delete the song after 1 minute to avoid wasting Firebase Storage disk quota
                 setTimeout(() => {
                     updateSongData(key, {
-                        status: "Downloaded",
+                        status: "Deleted",
                     })
                 }, 60 * 1000);
             })
